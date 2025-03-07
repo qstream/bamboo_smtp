@@ -104,7 +104,7 @@ defmodule Bamboo.SMTPAdapter do
     |> :gen_smtp_client.deliver(email)
     |> case do
       {:error, e} ->
-        Logger.info("error while sending mail, #{IO.inspect(e)}")
+        Logger.info("error while sending mail, #{inspect(e)}")
         evict_connection(gen_smtp_config)
 
         send_email(email, gen_smtp_config, retries-1)
