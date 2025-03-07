@@ -39,7 +39,7 @@ defmodule Bamboo.SmtpConnectionStore do
   end
 
   # Handle storing a connection
-  def handle_call({:evict_connection, config}, state) do
+  def handle_call({:evict_connection, config}, _from, state) do
     relay = Keyword.get(config, :relay, 25)
     port  = Keyword.get(config, :port)
     Logger.info("Removing old connection")
