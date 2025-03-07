@@ -81,16 +81,44 @@ defmodule Bamboo.SMTPAdapter do
 
     response =
       try do
-        email
-        |> Bamboo.Mailer.normalize_addresses()
-        |> to_gen_smtp_message
-        |> config[:transport].send_blocking(gen_smtp_config)
+        message =
+          email
+          |> Bamboo.Mailer.normalize_addresses()
+          |> to_gen_smtp_message
+
+          send_email(message, gen_smtp_config)
       catch
         e ->
           raise SMTPError, {:not_specified, e}
       end
 
     handle_response(response)
+  end
+
+  defp send_email(email, gen_smtp_config, retries \\ 3)
+  defp send_email(email, _, 0), do: {:error, :failed_after_retries}
+  defp send_email(email, gen_smtp_config, retries) do
+    socket_connection = get_connection(gen_smtp_config)
+
+    socket_connection
+    |> :gen_smtp_client.deliver(email)
+    |> case do
+      {:error, e} ->
+        Logger.info("error while sending mail, #{IO.inspect(e)}")
+        evict_connection(gen_smtp_config)
+
+        send_email(email, gen_smtp_config, retries-1)
+      res ->
+        res
+    end
+  end
+
+  defp get_connection(config) do
+    Bamboo.SmtpConnectionStore.get_connection(config)
+  end
+
+  defp evict_connection(config) do
+    Bamboo.SmtpConnectionStore.evict_connection(config)
   end
 
   @doc false
