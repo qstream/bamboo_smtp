@@ -99,22 +99,25 @@ defmodule Bamboo.SMTPAdapter do
   defp send_email(email, _, 0), do: {:error, :failed_after_retries}
   defp send_email(email, gen_smtp_config, retries) do
     socket_connection = get_connection(gen_smtp_config)
-
+    {_,to, _ } = email
     socket_connection
     |> :gen_smtp_client.deliver(email)
     |> case do
       {:error, e} ->
-        Logger.info("error while sending mail, #{inspect(e)}")
+        Logger.info("Error while sending mail to #{to}, #{inspect(e)}, while #{inspect(Keyword.take(gen_smtp_config, [:auth,:hostname, :port, :relay, :ssl, :tls,:server_name_indication]))}")
         evict_connection(gen_smtp_config)
 
         send_email(email, gen_smtp_config, retries-1)
       res ->
+        :gen_smtp_client.close(socket_connection)
         res
     end
   end
 
   defp get_connection(config) do
-    Bamboo.SmtpConnectionStore.get_connection(config)
+    connection = Bamboo.SmtpConnectionStore.get_connection(config)
+    Logger.info("New Socket connection created: #{inspect(elem(connection, 0))}, #{inspect(elem(connection, 1))}")
+    connection
   end
 
   defp evict_connection(config) do
