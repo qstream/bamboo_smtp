@@ -23,15 +23,16 @@ defmodule Bamboo.SmtpConnectionStore do
   end
 
   # Handle getting a connection
-  def handle_call({:get_connection, config}, _from, state) do
+  def handle_call({:get_connection, config}, from, state) do
+    {caller_pid, _} = from
 
     relay = Keyword.get(config, :relay, 25)
     port  = Keyword.get(config, :port)
-    case Map.get(state, {relay, port}) do
+    case Map.get(state, {caller_pid, relay, port}) do
       nil ->
         # No connection found, create a new one
         new_connection = create_smtp_connection(config)
-        {:reply, new_connection, Map.put(state, {relay, port}, new_connection)}
+        {:reply, new_connection, Map.put(state, {caller_pid, relay, port}, new_connection)}
       connection ->
         # Return existing connectionx
         {:reply, connection, state}
@@ -39,13 +40,15 @@ defmodule Bamboo.SmtpConnectionStore do
   end
 
   # Handle storing a connection
-  def handle_call({:evict_connection, config}, _from, state) do
+  def handle_call({:evict_connection, config}, from, state) do
+    {caller_pid, _} = from
+
     relay = Keyword.get(config, :relay, 25)
     port  = Keyword.get(config, :port)
     Logger.info("Removing old connection")
-    new_state = Map.delete(state, {relay, port})
+    new_state = Map.delete(state, {caller_pid, relay, port})
     new_connection = create_smtp_connection(config)
-    {:reply, new_connection, Map.put(new_state, {relay, port}, new_connection)}
+    {:reply, new_connection, Map.put(new_state, {caller_pid, relay, port}, new_connection)}
   end
 
   # Function to create a new SMTP connection (customize as needed)
